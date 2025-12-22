@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Калькулятор сварной сетки — test (по ТЗ v1.0)</title>
+  <style>
+    :root { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background: #f6f7f9; color: #111; }
+    header { padding: 14px 16px 10px; background: #fff; border-bottom: 1px solid #e7e7e7; position: sticky; top: 0; z-index: 10; }
+    h1 { margin: 0; font-size: 18px; }
+    .sub { margin-top: 4px; font-size: 12px; color: #555; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#f0f2f5; border:1px solid #e2e4e8; font-size:12px; color:#444; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 16px; }
+    .card { background:#fff; border:1px solid #e7e7e7; border-radius:12px; padding:14px; box-shadow:0 1px 0 rgba(0,0,0,.02); }
+    .grid { display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (min-width: 920px) { .grid.two { grid-template-columns:1fr 1fr; } }
+    label { display:block; font-size:12px; color:#333; margin-bottom:4px; }
+    input, select { width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:1px solid #d7d7d7; font-size:14px; background:#fff; }
+    input:focus, select:focus { outline:2px solid #cfe3ff; border-color:#7fb1ff; }
+    select:disabled { background:#f2f3f5; color:#777; }
+    .hint { font-size:12px; color:#666; margin-top:6px; line-height:1.35; }
+    .err { font-size:12px; color:#b00020; margin-top:6px; }
+    .warn { font-size:12px; color:#7a4b00; margin-top:6px; line-height:1.35; }
+    .ok { color:#0a6b2b; }
+    .btns { display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px; }
+    @media (min-width: 640px) { .btns { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+    button { padding:12px; border-radius:10px; border:1px solid #d7d7d7; background:#fff; font-size:14px; cursor:pointer; }
+    button.primary { background:#111; color:#fff; border-color:#111; }
+    .results { margin-top:14px; display:none; }
+    .sectionTitle { font-size:14px; font-weight:600; margin:0 0 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .kv { display:grid; grid-template-columns:1fr auto; gap:8px 12px; font-size:14px; }
+    .k { color:#333; }
+    .v { font-variant-numeric: tabular-nums; text-align:right; }
+    .note { margin-top:10px; font-size:12px; color:#666; line-height:1.35; }
+    details { margin-top:10px; }
+    summary { cursor:pointer; color:#444; font-size:13px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; }
+    .topControls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .toggle { display:flex; gap:8px; align-items:center; }
+    .toggle input { width:auto; }
+    .mini { font-size:12px; color:#666; }
+
+    .stickyBar {
+      position: sticky; bottom: 0; z-index: 9;
+      background: rgba(246,247,249,.95); backdrop-filter: blur(6px);
+      border-top: 1px solid #e7e7e7;
+      padding: 10px 16px;
+    }
+    .stickyInner { max-width: 1080px; margin: 0 auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .stickyInner button { padding:10px 12px; }
+    .stickyInner .mini { flex:1; min-width:240px; }
+    @media (min-width: 920px) { .stickyBar { display:none; } }
+
+    .hr { border:none; border-top:1px solid #eee; margin:14px 0; }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Калькулятор сварной арматурной сетки <span class="pill">test</span></h1>
+  <div class="sub">
+    <span class="pill">по ТЗ v1.0</span>
+    <span class="pill">Sy∈{100,150,200}</span>
+    <span class="pill">Sx∈{100,150,200,250,300,350,400,450}</span>
+    <span class="pill">Ø12 → min шаг 150 по оси</span>
+    <span class="pill">выпуски: Left/Right/Top/Bottom (опционально)</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+
+    <div class="topControls">
+      <div class="toggle">
+        <strong style="font-size:12px;color:#333;">Единицы ввода:</strong>
+        <label class="toggle mini"><input type="radio" name="u" value="mm" checked> мм</label>
+        <label class="toggle mini"><input type="radio" name="u" value="m"> м</label>
+      </div>
+
+      <div class="toggle">
+        <label class="toggle mini"><input id="autoCalc" type="checkbox" checked> автопересчёт</label>
+      </div>
+
+      <div class="mini">
+        Удельные веса (кг/м) по ТЗ: Ø6=0.222, Ø8=0.395, Ø10=0.616, Ø12=0.888
+      </div>
+    </div>
+
+    <div class="grid two" style="margin-top:12px;">
+
+      <!-- Геометрия: по ТЗ (W потом L — как ты любишь; но подписи совпадают с терминами ТЗ) -->
+      <div>
+        <div class="sectionTitle">Геометрия карты</div>
+        <div class="grid two">
+          <div>
+            <label for="W">W (ось Y), <span data-unit-label="len">мм</span></label>
+            <input id="W" type="number" inputmode="decimal" min="0" step="1" placeholder="1200…2350">
+            <div class="hint">ТЗ: 1200 ≤ W ≤ 2350 мм</div>
+            <div id="errW" class="err"></div>
+          </div>
+          <div>
+            <label for="L">L (ось X), <span data-unit-label="len">мм</span></label>
+            <input id="L" type="number" inputmode="decimal" min="0" step="1" placeholder="1000…6000">
+            <div class="hint">ТЗ: 1000 ≤ L ≤ 6000 мм</div>
+            <div id="errL" class="err"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Диаметры + цена -->
+      <div>
+        <div class="sectionTitle">Арматура и цена</div>
+        <div class="grid two">
+          <div>
+            <label for="dX">dX (ось X), мм</label>
+            <select id="dX">
+              <option value="">Выберите…</option>
+              <option value="6">6</option>
+              <option value="8">8</option>
+              <option value="10">10</option>
+              <option value="12">12</option>
+            </select>
+            <div id="errDX" class="err"></div>
+          </div>
+          <div>
+            <label for="dY">dY (ось Y), мм</label>
+            <select id="dY">
+              <option value="">Выберите…</option>
+              <option value="6">6</option>
+              <option value="8">8</option>
+              <option value="10">10</option>
+              <option value="12">12</option>
+            </select>
+            <div id="errDY" class="err"></div>
+          </div>
+
+          <div>
+            <label for="priceT">Индикативная цена, €/т</label>
+            <input id="priceT" type="number" inputmode="decimal" min="0" step="0.01" placeholder="">
+            <div id="errPriceT" class="err"></div>
+          </div>
+
+          <div class="hint">
+            По ТЗ пользователь видит: вес, €/т, итоговую цену.
+          </div>
+        </div>
+      </div>
+
+      <!-- Шаги: сначала Sy затем Sx -->
+      <div>
+        <div class="sectionTitle">Шаги</div>
+        <div class="grid two">
+          <div>
+            <label for="Sy">Sy (ось Y), мм</label>
+            <select id="Sy" disabled>
+              <option value="">Сначала выберите dY…</option>
+            </select>
+            <div class="hint">ТЗ: Sy ∈ {100,150,200}; при dY=12 → минимум 150</div>
+            <div id="errSy" class="err"></div>
+          </div>
+
+          <div>
+            <label for="Sx">Sx (ось X), мм</label>
+            <select id="Sx" disabled>
+              <option value="">Сначала выберите dX…</option>
+            </select>
+            <div class="hint">ТЗ: Sx ∈ {100,150,200,250,300,350,400,450}; при dX=12 → минимум 150</div>
+            <div id="errSx" class="err"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Выпуски: по ТЗ выпуск — от края карты до оси крайнего стержня -->
+      <div>
+        <div class="sectionTitle">Выпуски (опционально)</div>
+        <div class="grid two">
+          <div>
+            <label for="Left">Left, <span data-unit-label="len">мм</span></label>
+            <input id="Left" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <div id="errLeft" class="err"></div>
+          </div>
+          <div>
+            <label for="Right">Right, <span data-unit-label="len">мм</span></label>
+            <input id="Right" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <div class="hint">ТЗ: Right ≤ 200 мм</div>
+            <div id="errRight" class="err"></div>
+          </div>
+          <div>
+            <label for="Top">Top, <span data-unit-label="len">мм</span></label>
+            <input id="Top" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <div id="errTop" class="err"></div>
+          </div>
+          <div>
+            <label for="Bottom">Bottom, <span data-unit-label="len">мм</span></label>
+            <input id="Bottom" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <div id="errBottom" class="err"></div>
+          </div>
+        </div>
+        <div class="hint">
+          Если выпуски не заданы — калькулятор определяет их автоматически. Если невозможно соблюсти — уменьшает количество стержней.
+        </div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="calcBtn">Рассчитать</button>
+      <button id="copyBtn">Копировать результат</button>
+      <button id="shareBtn">Ссылка-шэр</button>
+      <button id="resetBtn">Сбросить</button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <button id="fillBtn" style="width:100%;">Заполнить пример</button>
+    </div>
+
+    <div id="globalErr" class="err" style="margin-top:10px"></div>
+
+    <div class="results" id="results">
+      <hr class="hr">
+
+      <div class="grid two">
+        <div class="card" style="border-radius:12px;border:1px solid #eee; box-shadow:none;">
+          <div class="sectionTitle">
+            <span>Результат</span>
+            <span class="pill" id="okBadge">готово</span>
+          </div>
+          <div class="kv" id="outKV"></div>
+        </div>
+
+        <div class="card" style="border-radius:12px;border:1px solid #eee; box-shadow:none;">
+          <div class="sectionTitle">Предупреждения / диагностика</div>
+          <div id="warnings" class="warn"></div>
+        </div>
+      </div>
+
+      <div class="note">
+        Сетка сварная. Арматура B500A. Значения расчётные.
+      </div>
+
+      <details>
+        <summary>Отладка</summary>
+        <pre id="debug" class="hint" style="white-space:pre-wrap"></pre>
+      </details>
+
+      <details>
+        <summary>ИВ (пока отключено в тесте)</summary>
+        <div class="hint">По ТЗ ИВ будет: шаги, выпуски, размеры L/W, различие диаметров толщиной линий. Без контура. Сейчас отключено.</div>
+      </details>
+
+      <details>
+        <summary>Тестовая «периферия» (не часть ТЗ)</summary>
+        <div class="hint">Здесь можно потом добавить €/м², экспорт в спецификацию, печать и т.д. Пока не мешаем ТЗ-логике.</div>
+      </details>
+    </div>
+
+  </div>
+</div>
+
+<div class="stickyBar">
+  <div class="stickyInner">
+    <button class="primary" id="calcBtn2">Рассчитать</button>
+    <button id="copyBtn2">Копировать</button>
+    <button id="shareBtn2">Шэр</button>
+    <div class="mini">На телефоне кнопки всегда под рукой.</div>
+  </div>
+</div>
+
+<script>
+  // ===================== ДАННЫЕ ПО ТЗ =====================
+  // Шаги
+  const SY_ALL = [100, 150, 200];
+  const SX_ALL = [100, 150, 200, 250, 300, 350, 400, 450];
+
+  // Правило: если диаметр 12 — минимальный шаг 150 ПО СООТВЕТСТВУЮЩЕЙ ОСИ
+  function allowedStepsByDiam(diam, stepsAll) {
+    if (!diam) return [];
+    const d = Number(diam);
+    if (d === 12) return stepsAll.filter(s => s >= 150);
+    return stepsAll.slice();
+  }
+
+  // Удельные веса (кг/м) по ТЗ
+  const KG_PER_M = {
+    6: 0.222,
+    8: 0.395,
+    10: 0.616,
+    12: 0.888
+  };
+
+  // ===================== HELPERS =====================
+  const $ = (id) => document.getElementById(id);
+  const LS_KEY = "mesh_calc_TZ_v1_0_test_2025_12_22";
+
+  const toNum = (v) => (v === "" || v === null || v === undefined) ? NaN : Number(v);
+
+  function round(n, d) { const k = 10 ** d; return Math.round(n * k) / k; }
+
+  function unitMode() {
+    return document.querySelector('input[name="u"]:checked').value; // "mm" or "m"
+  }
+
+  function lenToMm(v) {
+    const mode = unitMode();
+    const n = toNum(v);
+    if (!isFinite(n)) return NaN;
+    return mode === "mm" ? n : n * 1000;
+  }
+
+  function syncUnitLabels() {
+    const mode = unitMode();
+    document.querySelectorAll('[data-unit-label="len"]').forEach(el => el.textContent = (mode === "mm" ? "мм" : "м"));
+  }
+
+  function clearErrors() {
+    ["errW","errL","errDX","errDY","errSy","errSx","errLeft","errRight","errTop","errBottom","errPriceT","globalErr"]
+      .forEach(id => { const el = $(id); if (el) el.textContent = ""; });
+  }
+
+  function setKV(el, items) {
+    el.innerHTML = "";
+    for (const [k, v] of items) {
+      const dk = document.createElement("div"); dk.className = "k"; dk.textContent = k;
+      const dv = document.createElement("div"); dv.className = "v"; dv.textContent = v;
+      el.appendChild(dk); el.appendChild(dv);
+    }
+  }
+
+  function fillSelect(selectEl, options, placeholder) {
+    selectEl.innerHTML = "";
+    const o0 = document.createElement("option");
+    o0.value = "";
+    o0.textContent = placeholder;
+    selectEl.appendChild(o0);
+    for (const val of options) {
+      const o = document.createElement("option");
+      o.value = String(val);
+      o.textContent = String(val);
+      selectEl.appendChild(o);
+    }
+    selectEl.disabled = false;
+    selectEl.value = "";
+  }
+
+  // ===================== UI RULES (DIAM -> STEPS) =====================
+  function onDXChange() {
+    const dX = $("dX").value;
+    if (!dX) {
+      $("Sx").innerHTML = `<option value="">Сначала выберите dX…</option>`;
+      $("Sx").disabled = true;
+      $("Sx").value = "";
+      return;
+    }
+    const opts = allowedStepsByDiam(dX, SX_ALL);
+    fillSelect($("Sx"), opts, "Выберите…");
+  }
+
+  function onDYChange() {
+    const dY = $("dY").value;
+    if (!dY) {
+      $("Sy").innerHTML = `<option value="">Сначала выберите dY…</option>`;
+      $("Sy").disabled = true;
+      $("Sy").value = "";
+      return;
+    }
+    const opts = allowedStepsByDiam(dY, SY_ALL);
+    fillSelect($("Sy"), opts, "Выберите…");
+  }
+
+  // ===================== AXIS SOLVER (по ТЗ) =====================
+  // Выпуск = расстояние от края карты до ОСИ крайнего стержня.
+  // Для оси размером D и шагом S: при N стержнях длина между крайними = (N-1)*S.
+  // Остаток REM = D - (N-1)*S распределяется в выпуски (A+B=REM).
+  //
+  // Вход: D, S, reqA, reqB (могут быть NaN если не заданы).
+  // extraConstraints: функция, проверяющая ограничения на выпуски (например Right<=200 по оси X).
+  // Алгоритм: берём максимальный N, затем уменьшаем пока найдём решение.
+  function solveAxis({ D, S, reqA, reqB, extraConstraints }) {
+    // Макс. стержней при нулевых выпусках
+    let N = Math.floor(D / S) + 1;
+    if (N < 2) N = 2; // чтобы не падать в абсурд; если не влезает — ниже поймаем ошибку
+
+    const hasA = isFinite(reqA);
+    const hasB = isFinite(reqB);
+
+    while (N >= 2) {
+      const span = (N - 1) * S;
+      if (span >= D) { N--; continue; } // иначе REM<=0
+      const rem = D - span; // rem > 0
+
+      // Базово: хотим получить A,B >=0 и A+B=rem
+      let A, B;
+
+      if (!hasA && !hasB) {
+        A = rem / 2;
+        B = rem - A;
+      } else if (hasA && !hasB) {
+        A = reqA;
+        B = rem - A;
+      } else if (!hasA && hasB) {
+        B = reqB;
+        A = rem - B;
+      } else {
+        // оба заданы — это "пожелание". Подгоняем пропорционально, чтобы суммарно было rem.
+        const sumReq = reqA + reqB;
+        if (sumReq <= 0) {
+          A = rem / 2;
+          B = rem - A;
+        } else {
+          A = rem * (reqA / sumReq);
+          B = rem - A;
+        }
+      }
+
+      // Проверка базовых ограничений ТЗ: неотрицательность, A+B < D автоматически (т.к. rem < D)
+      if (!(A >= 0 && B >= 0)) { N--; continue; }
+
+      // Доп. ограничения (например Right<=200)
+      if (extraConstraints && !extraConstraints({ A, B, rem })) { N--; continue; }
+
+      return { N, A, B, span, rem };
+    }
+
+    return null;
+  }
+
+  // ===================== VALIDATION =====================
+  function validateInputs(mm) {
+    clearErrors();
+    let ok = true;
+    const bad = (id, msg) => { $(id).textContent = msg; ok = false; };
+
+    // L/W bounds by TZ
+    if (!(mm.L > 0)) bad("errL", "Введите L");
+    if (!(mm.W > 0)) bad("errW", "Введите W");
+
+    // Если пользователь в мм, проверяем как есть; если в м — проверяем после перевода (мы уже перевели)
+    if (isFinite(mm.L) && (mm.L < 1000 || mm.L > 6000)) bad("errL", "ТЗ: 1000 ≤ L ≤ 6000 мм");
+    if (isFinite(mm.W) && (mm.W < 1200 || mm.W > 2350)) bad("errW", "ТЗ: 1200 ≤ W ≤ 2350 мм");
+
+    if (!(mm.dX > 0)) bad("errDX", "Выберите dX");
+    if (!(mm.dY > 0)) bad("errDY", "Выберите dY");
+
+    if (!(mm.Sx > 0)) bad("errSx", "Выберите Sx");
+    if (!(mm.Sy > 0)) bad("errSy", "Выберите Sy");
+
+    if (!(mm.priceT >= 0)) bad("errPriceT", "Цена не может быть отрицательной");
+
+    // Выпуски: опционально, но если заданы — должны быть >=0
+    const checkOptNonNeg = (val, id) => {
+      if (val === null) return;
+      if (!(val >= 0)) bad(id, "Неотрицательно");
+    };
+    checkOptNonNeg(mm.Left, "errLeft");
+    checkOptNonNeg(mm.Right, "errRight");
+    checkOptNonNeg(mm.Top, "errTop");
+    checkOptNonNeg(mm.Bottom, "errBottom");
+
+    // Ограничение: Right <= 200 мм (если задан)
+    if (mm.Right !== null && mm.Right > 200) bad("errRight", "ТЗ: Right ≤ 200 мм");
+
+    // Ограничения сумм (если заданы обе стороны — проверяем быстро, но всё равно решатель уточнит)
+    if (mm.Left !== null && mm.Right !== null && (mm.Left + mm.Right >= mm.L)) bad("errLeft", "ТЗ: Left+Right < L");
+    if (mm.Top !== null && mm.Bottom !== null && (mm.Top + mm.Bottom >= mm.W)) bad("errTop", "ТЗ: Top+Bottom < W");
+
+    // Правило Ø12 -> min step 150 по соответствующей оси
+    if (mm.dX === 12 && mm.Sx < 150) bad("errSx", "При dX=12 минимальный шаг 150");
+    if (mm.dY === 12 && mm.Sy < 150) bad("errSy", "При dY=12 минимальный шаг 150");
+
+    return ok;
+  }
+
+  // ===================== CALC =====================
+  function calc() {
+    saveState();
+
+    const mm = {
+      // L/W already in mm
+      L: lenToMm($("L").value),
+      W: lenToMm($("W").value),
+
+      dX: toNum($("dX").value),
+      dY: toNum($("dY").value),
+
+      Sx: toNum($("Sx").value),
+      Sy: toNum($("Sy").value),
+
+      // Optional releases: if empty -> null
+      Left:  $("Left").value  === "" ? null : lenToMm($("Left").value),
+      Right: $("Right").value === "" ? null : lenToMm($("Right").value),
+      Top:   $("Top").value   === "" ? null : lenToMm($("Top").value),
+      Bottom:$("Bottom").value=== "" ? null : lenToMm($("Bottom").value),
+
+      priceT: toNum($("priceT").value || 0)
+    };
+
+    if (!validateInputs(mm)) { $("results").style.display = "none"; return; }
+
+    // Решаем ось X (D=L, S=Sx), выпуски Left/Right
+    const solX = solveAxis({
+      D: mm.L,
+      S: mm.Sx,
+      reqA: (mm.Left  === null ? NaN : mm.Left),
+      reqB: (mm.Right === null ? NaN : mm.Right),
+      extraConstraints: ({ B }) => (B <= 200 + 1e-9) // Right <= 200
+    });
+
+    // Решаем ось Y (D=W, S=Sy), выпуски Bottom/Top
+    const solY = solveAxis({
+      D: mm.W,
+      S: mm.Sy,
+      reqA: (mm.Bottom === null ? NaN : mm.Bottom),
+      reqB: (mm.Top    === null ? NaN : mm.Top),
+      extraConstraints: null
+    });
+
+    if (!solX || !solY) {
+      $("globalErr").textContent = "Невозможно разместить стержни при заданных размерах/шагах/выпусках (даже с уменьшением количества).";
+      $("results").style.display = "none";
+      return;
+    }
+
+    // Кол-во стержней по направлениям:
+    // По ТЗ: “расчёт по оси” -> N это количество стержней вдоль данной оси (по её размеру и шагу).
+    // По сути:
+    // - N_Xbars = количество стержней, идущих вдоль Y (т.к. раскладываемся по X)
+    // - N_Ybars = количество стержней, идущих вдоль X (т.к. раскладываемся по Y)
+    //
+    // Но для веса нам важно:
+    // - длина стержней, идущих по X = W? нет: стержень по X имеет длину по X-габариту? Здесь в ТЗ не определено.
+    // В производстве обычно: “стержни направления X” — параллельны оси X и имеют длину L.
+    // “стержни направления Y” — параллельны оси Y и имеют длину W.
+    //
+    // Это согласуется с dX,dY: диаметр по оси X относится к стержням, параллельным X.
+    // Тогда:
+    // - число X-стержней определяется раскладкой по Y (ось Y, шаг Sy) => N_X = solY.N
+    // - число Y-стержней определяется раскладкой по X (ось X, шаг Sx) => N_Y = solX.N
+    const NX = solY.N; // стержни параллельны X, их количество задаётся осью Y
+    const NY = solX.N; // стержни параллельны Y, их количество задаётся осью X
+
+    // Длины стержней с учётом того, что границы определяются крайними стержнями:
+    // - Длина X-стержня = расстояние между крайними по X? = (NX??) нет.
+    // По ТЗ выпуски — до оси крайнего стержня, значит "рабочая длина" стержня по X соответствует L? тут без ИВ пока считаем как L (полный размер карты по оси X).
+    //
+    // Однако с учётом определения выпуска корректнее: крайние стержни задают "границу карты" по осям,
+    // а L и W — это размеры карты. Значит длина X-стержня = L, длина Y-стержня = W.
+    // Выпуски влияют на расположение крайних стержней внутри размера, но не на длину стержня направления (это про ИВ).
+    //
+    // В твоих обсуждениях раньше “выпуск” = не приваренный хвост стержня; это действительно увеличивает длину стержня.
+    // Но в ТЗ v1.0 выпуск определён иначе (от края до оси крайнего стержня)【:contentReference[oaicite:2]{index=2}】.
+    //
+    // Поэтому в ЭТОЙ версии (строго по ТЗ v1.0) длины стержней = L и W.
+    const lenX_m = mm.L / 1000; // стержни параллельны X
+    const lenY_m = mm.W / 1000; // стержни параллельны Y
+
+    const wX = KG_PER_M[mm.dX];
+    const wY = KG_PER_M[mm.dY];
+
+    const massX = NX * lenX_m * wX;
+    const massY = NY * lenY_m * wY;
+    const mass = massX + massY;
+
+    const area = (mm.L / 1000) * (mm.W / 1000);
+
+    const priceGrid = (mass / 1000) * mm.priceT;
+
+    // Округления (как мы ранее договаривались для теста; ТЗ конкретику округлений не задаёт)
+    const mass_r = round(mass, 1);
+    const area_r = round(area, 2);
+    const price_r = round(priceGrid, 2);
+
+    // Фактические выпуски из решателя
+    const LeftA = solX.A, RightB = solX.B;
+    const BottomA = solY.A, TopB = solY.B;
+
+    setKV($("outKV"), [
+      ["L (ось X)", `${Math.round(mm.L)} мм`],
+      ["W (ось Y)", `${Math.round(mm.W)} мм`],
+      ["Sx / Sy", `${mm.Sx} мм / ${mm.Sy} мм`],
+      ["dX / dY", `${mm.dX} мм / ${mm.dY} мм`],
+
+      ["Кол-во X-стержней (∥X)", `${NX} шт`],
+      ["Кол-во Y-стержней (∥Y)", `${NY} шт`],
+
+      ["Факт. выпуски X (Left/Right)", `${round(LeftA,0)} / ${round(RightB,0)} мм`],
+      ["Факт. выпуски Y (Bottom/Top)", `${round(BottomA,0)} / ${round(TopB,0)} мм`],
+
+      ["Вес карты", `${mass_r} кг`],
+      ["Площадь карты", `${area_r} м²`],
+
+      ["Цена, €/т", `${round(mm.priceT,2).toFixed(2)}`],
+      ["Цена сетки, €", `${price_r.toFixed(2)}`],
+    ]);
+
+    // Warnings
+    const warn = [];
+    if (mm.priceT === 0) warn.push("Цена €/т = 0 → итоговая цена будет 0 (для теста допустимо).");
+
+    // Если пользователь задавал выпуски — показываем, что они могли стать фактическими другими (по правилу уменьшения N)
+    if (mm.Left !== null || mm.Right !== null) {
+      const reqL = (mm.Left ?? 0) + (mm.Right ?? 0);
+      const factL = LeftA + RightB;
+      if (Math.abs(reqL - factL) > 1e-6) warn.push("По оси X заданные выпуски не удалось соблюсти полностью — вычислены фактические (возможно уменьшено количество стержней).");
+    }
+    if (mm.Bottom !== null || mm.Top !== null) {
+      const reqW = (mm.Bottom ?? 0) + (mm.Top ?? 0);
+      const factW = BottomA + TopB;
+      if (Math.abs(reqW - factW) > 1e-6) warn.push("По оси Y заданные выпуски не удалось соблюсти полностью — вычислены фактические (возможно уменьшено количество стержней).");
+    }
+
+    // sanity
+    if (mass_r < 1) warn.push("Масса очень мала — проверь мм/м и входные размеры.");
+    if (mass_r > 2000) warn.push("Масса очень велика для одной карты — проверь размеры/шаги.");
+    if (area > 20) warn.push("Площадь выглядит большой — проверь размеры.");
+
+    $("warnings").innerHTML = warn.length ? warn.map(x => `• ${x}`).join("<br/>") : `<span class="ok">Похоже на правду.</span>`;
+
+    $("debug").textContent =
+`Ввод (мм):
+L=${mm.L}, W=${mm.W}
+Sx=${mm.Sx}, Sy=${mm.Sy}
+dX=${mm.dX}, dY=${mm.dY}
+Left=${mm.Left}, Right=${mm.Right}, Bottom=${mm.Bottom}, Top=${mm.Top}
+priceT=${mm.priceT}
+
+Ось X:
+N=${solX.N}, rem=${solX.rem}, Left=${solX.A}, Right=${solX.B}
+
+Ось Y:
+N=${solY.N}, rem=${solY.rem}, Bottom=${solY.A}, Top=${solY.B}
+
+Стержни:
+NX (∥X) = ${NX}, lenX=${lenX_m}м, wX=${wX}
+NY (∥Y) = ${NY}, lenY=${lenY_m}м, wY=${wY}
+
+massX=${massX}, massY=${massY}, mass=${mass}
+area=${area}
+priceGrid=${priceGrid}`;
+
+    $("okBadge").textContent = "готово";
+    $("globalErr").textContent = "";
+    $("results").style.display = "block";
+    $("results").scrollIntoView({behavior: "smooth", block: "start"});
+  }
+
+  // ===================== COPY / SHARE / STATE =====================
+  function buildCopyText() {
+    if ($("results").style.display !== "block") return "Нет результата. Нажмите «Рассчитать».";
+    const rows = [];
+    rows.push("Калькулятор сварной сетки (по ТЗ v1.0)");
+    rows.push("");
+    const el = $("outKV");
+    const kids = Array.from(el.children);
+    for (let i=0; i<kids.length; i+=2) rows.push(`- ${kids[i].textContent}: ${kids[i+1].textContent}`);
+    rows.push("");
+    rows.push("Предупреждения:");
+    rows.push($("warnings").innerText.trim() || "—");
+    rows.push("");
+    rows.push("Примечание: Сетка сварная. Арматура B500A. Значения расчётные.");
+    return rows.join("\n");
+  }
+
+  async function copyResult() {
+    const text = buildCopyText();
+    try { await navigator.clipboard.writeText(text); alert("Результат скопирован."); }
+    catch { prompt("Скопируйте текст:", text); }
+  }
+
+  function stateToQuery() {
+    const p = new URLSearchParams();
+    p.set("u", unitMode());
+    ["L","W","dX","dY","Sx","Sy","Left","Right","Bottom","Top","priceT"].forEach(id => p.set(id, $(id).value || ""));
+    return p.toString();
+  }
+
+  async function shareLink() {
+    const url = `${location.origin}${location.pathname}?${stateToQuery()}`;
+    try { await navigator.clipboard.writeText(url); alert("Ссылка скопирована."); }
+    catch { prompt("Скопируйте ссылку:", url); }
+  }
+
+  function saveState() {
+    const state = {
+      u: unitMode(),
+      auto: $("autoCalc").checked,
+      L: $("L").value, W: $("W").value,
+      dX: $("dX").value, dY: $("dY").value,
+      Sx: $("Sx").value, Sy: $("Sy").value,
+      Left: $("Left").value, Right: $("Right").value,
+      Bottom: $("Bottom").value, Top: $("Top").value,
+      priceT: $("priceT").value
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+
+      if (s.u) document.querySelector(`input[name="u"][value="${s.u}"]`).checked = true;
+      $("autoCalc").checked = !!s.auto;
+
+      ["L","W","Left","Right","Bottom","Top","priceT"].forEach(k => { if (s[k] !== undefined) $(k).value = s[k]; });
+      if (s.dX !== undefined) $("dX").value = s.dX;
+      if (s.dY !== undefined) $("dY").value = s.dY;
+
+      syncUnitLabels();
+      onDXChange();
+      onDYChange();
+
+      if (s.Sx !== undefined) $("Sx").value = s.Sx;
+      if (s.Sy !== undefined) $("Sy").value = s.Sy;
+    } catch {}
+  }
+
+  function applyQuery() {
+    const p = new URLSearchParams(location.search);
+    if (!p.size) return;
+
+    const u = p.get("u");
+    if (u === "mm" || u === "m") document.querySelector(`input[name="u"][value="${u}"]`).checked = true;
+
+    ["L","W","Left","Right","Bottom","Top","priceT"].forEach(id => {
+      const v = p.get(id);
+      if (v !== null) $(id).value = v;
+    });
+
+    const dX = p.get("dX"); if (dX !== null) $("dX").value = dX;
+    const dY = p.get("dY"); if (dY !== null) $("dY").value = dY;
+
+    syncUnitLabels();
+    onDXChange();
+    onDYChange();
+
+    const Sx = p.get("Sx"); if (Sx !== null) $("Sx").value = Sx;
+    const Sy = p.get("Sy"); if (Sy !== null) $("Sy").value = Sy;
+  }
+
+  function resetAll() {
+    ["L","W","Left","Right","Bottom","Top","priceT"].forEach(id => $(id).value = "");
+    $("dX").value = "";
+    $("dY").value = "";
+    onDXChange();
+    onDYChange();
+    $("results").style.display = "none";
+    clearErrors();
+    $("globalErr").textContent = "";
+    localStorage.removeItem(LS_KEY);
+    if (location.search) history.replaceState({}, "", location.pathname);
+  }
+
+  function fillExample() {
+    // пример в рамках ТЗ
+    document.querySelector('input[name="u"][value="mm"]').checked = true;
+    syncUnitLabels();
+
+    $("W").value = 2000;
+    $("L").value = 6000;
+
+    $("dX").value = "12";
+    $("dY").value = "8";
+    onDXChange();
+    onDYChange();
+
+    // при dX=12 шаг 100 запрещён, выберем 150
+    $("Sx").value = "150";
+    $("Sy").value = "100";
+
+    $("Left").value = "";
+    $("Right").value = "";
+    $("Bottom").value = "";
+    $("Top").value = "";
+
+    $("priceT").value = "650";
+    $("results").style.display = "none";
+    clearErrors();
+    saveState();
+  }
+
+  // ===================== WIRING =====================
+  function maybeAutoCalc() {
+    if ($("autoCalc").checked) calc();
+    else saveState();
+  }
+
+  $("dX").addEventListener("change", () => { onDXChange(); maybeAutoCalc(); });
+  $("dY").addEventListener("change", () => { onDYChange(); maybeAutoCalc(); });
+
+  ["L","W","Sx","Sy","Left","Right","Bottom","Top","priceT"].forEach(id => {
+    $(id).addEventListener("input", maybeAutoCalc);
+    $(id).addEventListener("change", maybeAutoCalc);
+  });
+
+  document.querySelectorAll('input[name="u"]').forEach(r => r.addEventListener("change", () => { syncUnitLabels(); maybeAutoCalc(); }));
+  $("autoCalc").addEventListener("change", saveState);
+
+  $("calcBtn").addEventListener("click", calc);
+  $("calcBtn2").addEventListener("click", calc);
+
+  $("copyBtn").addEventListener("click", copyResult);
+  $("copyBtn2").addEventListener("click", copyResult);
+
+  $("shareBtn").addEventListener("click", shareLink);
+  $("shareBtn2").addEventListener("click", shareLink);
+
+  $("resetBtn").addEventListener("click", resetAll);
+
+  $("fillBtn").addEventListener("click", () => { fillExample(); calc(); });
+
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter") calc(); });
+
+  // init
+  syncUnitLabels();
+  onDXChange();
+  onDYChange();
+  loadState();
+  applyQuery();
+</script>
+</body>
+</html>
