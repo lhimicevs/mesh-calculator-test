@@ -61,7 +61,7 @@
 <header>
   <h1>Калькулятор сварной арматурной сетки <span class="pill">test</span></h1>
   <div class="mini" style="margin-top:6px;">
-    Фиксированный шаг машины: шаг не “подгоняем”, под выпуски только убираем стержни.
+    Шаг фиксированный (машина). Под выпуски — только уменьшаем количество стержней.
   </div>
 </header>
 
@@ -91,13 +91,13 @@
         <div class="grid two">
           <div>
             <label for="W">W (ось Y), <span data-unit-label="len">мм</span></label>
-            <input id="W" type="number" inputmode="decimal" min="0" step="1" placeholder="1200…2350">
+            <input id="W" type="number" inputmode="decimal" min="0" step="50" placeholder="1200…2350">
             <div class="hint">ТЗ: 1200 ≤ W ≤ 2350 мм</div>
             <div id="errW" class="err"></div>
           </div>
           <div>
             <label for="L">L (ось X), <span data-unit-label="len">мм</span></label>
-            <input id="L" type="number" inputmode="decimal" min="0" step="1" placeholder="1000…6000">
+            <input id="L" type="number" inputmode="decimal" min="0" step="50" placeholder="1000…6000">
             <div class="hint">ТЗ: 1000 ≤ L ≤ 6000 мм</div>
             <div id="errL" class="err"></div>
           </div>
@@ -137,7 +137,7 @@
           </div>
 
           <div class="hint">
-            dX относится к стержням, идущим вдоль X (длина = L). dY — вдоль Y (длина = W).
+            dX относится к стержням вдоль X (длина = L). dY — вдоль Y (длина = W).
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@
             <select id="Sy" disabled>
               <option value="">Сначала выберите dY…</option>
             </select>
-            <div class="hint">Sy ∈ {100,150,200}. При dY=12 → шаг 100 запрещён (минимум 150).</div>
+            <div class="hint">Sy ∈ {100,150,200}. Если где-либо Ø12 — шаг 100 запрещён везде.</div>
             <div id="errSy" class="err"></div>
           </div>
 
@@ -159,7 +159,7 @@
             <select id="Sx" disabled>
               <option value="">Сначала выберите dX…</option>
             </select>
-            <div class="hint">Sx ∈ {100,150,200,250,300,350,400,450}. При dX=12 → шаг 100 запрещён (минимум 150).</div>
+            <div class="hint">Sx ∈ {100,150,200,250,300,350,400,450}. Если где-либо Ø12 — шаг 100 запрещён везде.</div>
             <div id="errSx" class="err"></div>
           </div>
         </div>
@@ -170,28 +170,28 @@
         <div class="grid two">
           <div>
             <label for="Left">Left, <span data-unit-label="len">мм</span></label>
-            <input id="Left" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <input id="Left" type="number" inputmode="decimal" min="0" step="50" placeholder="">
             <div id="errLeft" class="err"></div>
           </div>
           <div>
             <label for="Right">Right, <span data-unit-label="len">мм</span></label>
-            <input id="Right" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <input id="Right" type="number" inputmode="decimal" min="0" step="50" placeholder="">
             <div class="hint">Ограничение: Right ≤ 200 мм</div>
             <div id="errRight" class="err"></div>
           </div>
           <div>
             <label for="Top">Top, <span data-unit-label="len">мм</span></label>
-            <input id="Top" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <input id="Top" type="number" inputmode="decimal" min="0" step="50" placeholder="">
             <div id="errTop" class="err"></div>
           </div>
           <div>
             <label for="Bottom">Bottom, <span data-unit-label="len">мм</span></label>
-            <input id="Bottom" type="number" inputmode="decimal" min="0" step="1" placeholder="">
+            <input id="Bottom" type="number" inputmode="decimal" min="0" step="50" placeholder="">
             <div id="errBottom" class="err"></div>
           </div>
         </div>
         <div class="hint">
-          Если не заданы — считаем автоматически. Минимум по умолчанию: 10 мм с каждой стороны.
+          Если не заданы — считаем автоматически (минимум 10 мм с каждой стороны).
           Если заданные не влезают — уменьшаем количество стержней (шаг не меняем).
         </div>
       </div>
@@ -230,10 +230,10 @@
       </div>
 
       <div class="card" style="margin-top:10px;border-radius:12px;border:1px solid #eee; box-shadow:none;">
-        <div class="sectionTitle">Ограничения и правила (чтобы не занимать пол-экрана при вводе)</div>
+        <div class="sectionTitle">Ограничения и правила (перенесено вниз)</div>
         <div class="pillsWrap" id="rulesPills"></div>
         <div class="hint">
-          Здесь просто напоминание. В расчёте правило всегда одно: шаг фиксированный, под выпуски — только уменьшаем количество стержней.
+          Напоминание: шаг фиксированный. Выпуск длину стержня не увеличивает. Под выпуски — только уменьшаем N.
         </div>
       </div>
 
@@ -256,27 +256,22 @@
 </div>
 
 <script>
-  // ===================== НАСТРОЙКИ / ПРАВИЛА =====================
+  // ===================== ПРАВИЛА =====================
   const SY_ALL = [100, 150, 200];
   const SX_ALL = [100, 150, 200, 250, 300, 350, 400, 450];
-
-  // Ø12 -> шаг 100 запрещён по соответствующей оси (минимум 150)
-  function allowedStepsByDiam(diam, stepsAll) {
-    if (!diam) return [];
-    const d = Number(diam);
-    if (d === 12) return stepsAll.filter(s => s >= 150);
-    return stepsAll.slice();
-  }
 
   // Удельные веса (кг/м)
   const KG_PER_M = { 6: 0.222, 8: 0.395, 10: 0.616, 12: 0.888 };
 
-  // Минимальный выпуск с каждой стороны (важно!)
+  // Минимальный выпуск с каждой стороны
   const MIN_RELEASE = 10; // мм
+
+  // Ограничение справа
+  const MAX_RIGHT = 200; // мм
 
   // ===================== HELPERS =====================
   const $ = (id) => document.getElementById(id);
-  const LS_KEY = "mesh_calc_fixedstep_release_is_remove_bars_v2025_12_23";
+  const LS_KEY = "mesh_calc_fixedstep_v2025_12_23_full";
 
   const toNum = (v) => (v === "" || v === null || v === undefined) ? NaN : Number(v);
   function round(n, d) { const k = 10 ** d; return Math.round(n * k) / k; }
@@ -288,9 +283,16 @@
     if (!isFinite(n)) return NaN;
     return mode === "mm" ? n : n * 1000;
   }
+
   function syncUnitLabels() {
     const mode = unitMode();
     document.querySelectorAll('[data-unit-label="len"]').forEach(el => el.textContent = (mode === "mm" ? "мм" : "м"));
+
+    // шаг стрелочек: 50 мм или 0.05 м
+    const step = (mode === "mm") ? "50" : "0.05";
+    $("W").setAttribute("step", step);
+    $("L").setAttribute("step", step);
+    ["Left","Right","Top","Bottom"].forEach(id => $(id).setAttribute("step", step));
   }
 
   function clearErrors() {
@@ -320,75 +322,134 @@
       selectEl.appendChild(o);
     }
     selectEl.disabled = false;
-    selectEl.value = "";
   }
 
-  // ===================== UI: DIAM -> STEPS =====================
-  function onDXChange() {
-    const dX = $("dX").value;
-    if (!dX) {
+  // ===================== ГЛОБАЛЬНОЕ ПРАВИЛО Ø12 =====================
+  function isAny12() {
+    return Number($("dX").value) === 12 || Number($("dY").value) === 12;
+  }
+  function allowedStepsGlobal(stepsAll) {
+    return isAny12() ? stepsAll.filter(s => s >= 150) : stepsAll.slice();
+  }
+
+  function rebuildSteps() {
+    const dx = $("dX").value;
+    const dy = $("dY").value;
+
+    // Sx доступен только после dX
+    if (!dx) {
       $("Sx").innerHTML = `<option value="">Сначала выберите dX…</option>`;
       $("Sx").disabled = true;
       $("Sx").value = "";
-      return;
+    } else {
+      const prev = $("Sx").value;
+      fillSelect($("Sx"), allowedStepsGlobal(SX_ALL), "Выберите…");
+      if (prev && Array.from($("Sx").options).some(o => o.value === prev)) $("Sx").value = prev;
+      else $("Sx").value = "";
     }
-    fillSelect($("Sx"), allowedStepsByDiam(dX, SX_ALL), "Выберите…");
-  }
-  function onDYChange() {
-    const dY = $("dY").value;
-    if (!dY) {
+
+    // Sy доступен только после dY
+    if (!dy) {
       $("Sy").innerHTML = `<option value="">Сначала выберите dY…</option>`;
       $("Sy").disabled = true;
       $("Sy").value = "";
-      return;
+    } else {
+      const prev = $("Sy").value;
+      fillSelect($("Sy"), allowedStepsGlobal(SY_ALL), "Выберите…");
+      if (prev && Array.from($("Sy").options).some(o => o.value === prev)) $("Sy").value = prev;
+      else $("Sy").value = "";
     }
-    fillSelect($("Sy"), allowedStepsByDiam(dY, SY_ALL), "Выберите…");
+
+    // если где-то Ø12 и был выбран 100 — сбросим
+    if (isAny12()) {
+      if ($("Sx").value === "100") $("Sx").value = "";
+      if ($("Sy").value === "100") $("Sy").value = "";
+    }
   }
 
-  // ===================== SOLVER (фикс. шаг, под выпуски только уменьшаем N) =====================
-  // Выпуск = расстояние от края карты до оси крайнего стержня (НЕ увеличивает длину стержня).
+  // ===================== SOLVER (фикс. шаг, заданные выпуски=МИНИМУМЫ) =====================
   // Для оси размера D и шага S, при N стержнях:
   // span=(N-1)*S, rem=D-span, A+B=rem.
-  // Мы ищем МАКСИМАЛЬНО возможный N, затем уменьшаем, пока:
-  // - A>=MIN_RELEASE и B>=MIN_RELEASE
-  // - (если пользователь задал A/B) пытаемся уважить, но если не влезает — уменьшить N
-  // - выполняются дополнительные ограничения (например Right<=200)
-  function solveAxis({ D, S, reqA, reqB, minRelease, extraConstraints }) {
-    let N = Math.floor(D / S) + 1; // максимальный N при фиксированном шаге
+  // Если reqA/reqB заданы — это МИНИМУМЫ. Мы НЕ уменьшаем их.
+  // Если не влезают — уменьшаем N. "Лишнее" распределяем, уважая maxA/maxB.
+  function solveAxis({ D, S, reqA, reqB, minRelease, maxA, maxB }) {
+    let N = Math.floor(D / S) + 1;
     if (N < 2) N = 2;
 
     const hasA = isFinite(reqA);
     const hasB = isFinite(reqB);
 
+    function distributeExtra(A, B, extra) {
+      let a = A, b = B, e = extra;
+      if (e <= 1e-12) return { A: a, B: b, extraLeft: 0 };
+
+      // сначала поровну
+      let addA = e / 2;
+      let addB = e - addA;
+
+      if (maxA != null) addA = Math.min(addA, Math.max(0, maxA - a));
+      if (maxB != null) addB = Math.min(addB, Math.max(0, maxB - b));
+
+      a += addA; b += addB;
+      e -= (addA + addB);
+
+      // затем докидываем туда, где ещё можно
+      if (e > 1e-9 && (maxA == null || a < maxA - 1e-9)) {
+        const add = (maxA == null) ? e : Math.min(e, maxA - a);
+        a += add; e -= add;
+      }
+      if (e > 1e-9 && (maxB == null || b < maxB - 1e-9)) {
+        const add = (maxB == null) ? e : Math.min(e, maxB - b);
+        b += add; e -= add;
+      }
+      return { A: a, B: b, extraLeft: e };
+    }
+
     while (N >= 2) {
       const span = (N - 1) * S;
-      if (span > D) { N--; continue; } // > (span==D допустим, но minRelease его убьёт)
-      const rem = D - span; // rem >= 0
+      if (span > D) { N--; continue; }
 
-      // Быстрый отсев: чтобы вообще было возможно minRelease, нужно rem >= 2*minRelease
+      const rem = D - span; // >=0
+
+      // нужен минимум для обоих краёв
       if (rem < 2 * minRelease) { N--; continue; }
 
       let A, B;
 
       if (!hasA && !hasB) {
-        // авто — поровну
+        // авто: поровну
         A = rem / 2;
         B = rem - A;
       } else if (hasA && !hasB) {
+        // A минимум, B остаток
         A = reqA;
         B = rem - A;
       } else if (!hasA && hasB) {
+        // B минимум, A остаток
         B = reqB;
         A = rem - B;
       } else {
-        // оба заданы: масштабируем пропорционально, чтобы A+B=rem
+        // оба заданы как минимумы
         const sumReq = reqA + reqB;
-        if (sumReq <= 0) { A = rem / 2; B = rem - A; }
-        else { A = rem * (reqA / sumReq); B = rem - A; }
+        if (sumReq > rem + 1e-9) { N--; continue; } // не влезает -> уменьшаем N
+
+        A = reqA;
+        B = reqB;
+
+        const extra = rem - sumReq;
+        const dist = distributeExtra(A, B, extra);
+        A = dist.A; B = dist.B;
+
+        // если лишнее некуда положить (из-за max) -> уменьшаем N
+        if (dist.extraLeft > 1e-6) { N--; continue; }
       }
 
+      // минимальные выпуски
       if (!(A >= minRelease && B >= minRelease)) { N--; continue; }
-      if (extraConstraints && !extraConstraints({ A, B, rem, N })) { N--; continue; }
+
+      // max ограничения
+      if (maxA != null && A > maxA + 1e-9) { N--; continue; }
+      if (maxB != null && B > maxB + 1e-9) { N--; continue; }
 
       return { N, A, B, span, rem };
     }
@@ -427,16 +488,16 @@
     checkOpt(mm.Bottom, "errBottom", "Bottom");
     checkOpt(mm.Top, "errTop", "Top");
 
-    // Right <= 200 если задан
-    if (mm.Right !== null && mm.Right > 200) bad("errRight", "Right ≤ 200 мм");
+    // Right <= 200 если задан пользователем
+    if (mm.Right !== null && mm.Right > MAX_RIGHT) bad("errRight", `Right ≤ ${MAX_RIGHT} мм`);
 
-    // Проверка сумм если обе стороны заданы
+    // Если обе стороны заданы — сумма должна быть < размера
     if (mm.Left !== null && mm.Right !== null && (mm.Left + mm.Right >= mm.L)) bad("errLeft", "Left+Right < L");
     if (mm.Top !== null && mm.Bottom !== null && (mm.Top + mm.Bottom >= mm.W)) bad("errTop", "Top+Bottom < W");
 
-    // Ø12 -> запрет шага 100 по соответствующей оси (min 150)
-    if (mm.dX === 12 && mm.Sx < 150) bad("errSx", "При dX=12 шаг 100 запрещён (минимум 150)");
-    if (mm.dY === 12 && mm.Sy < 150) bad("errSy", "При dY=12 шаг 100 запрещён (минимум 150)");
+    // Глобальное правило Ø12 -> запрет 100 по обеим осям
+    if ((mm.dX === 12 || mm.dY === 12) && mm.Sx < 150) bad("errSx", "При наличии Ø12 шаг 100 запрещён (мин 150)");
+    if ((mm.dX === 12 || mm.dY === 12) && mm.Sy < 150) bad("errSy", "При наличии Ø12 шаг 100 запрещён (мин 150)");
 
     return ok;
   }
@@ -463,47 +524,45 @@
 
     if (!validateInputs(mm)) { $("results").style.display = "none"; return; }
 
-    // По умолчанию (если не задано) минимальный выпуск MIN_RELEASE
-    const reqLeft  = (mm.Left   === null ? NaN : mm.Left);
-    const reqRight = (mm.Right  === null ? NaN : mm.Right);
-    const reqBottom= (mm.Bottom === null ? NaN : mm.Bottom);
-    const reqTop   = (mm.Top    === null ? NaN : mm.Top);
+    // если сторона не задана — считаем как "не задано" (NaN), а минимум MIN_RELEASE обеспечит solver
+    const reqLeft   = (mm.Left   === null ? NaN : mm.Left);
+    const reqRight  = (mm.Right  === null ? NaN : mm.Right);
+    const reqBottom = (mm.Bottom === null ? NaN : mm.Bottom);
+    const reqTop    = (mm.Top    === null ? NaN : mm.Top);
 
-    // Ось X: размер L, шаг Sx, выпуски Left/Right, ограничение Right<=200
+    // Ось X: размер L, шаг Sx, выпуски Left/Right (минимумы), Right<=200
     const solX = solveAxis({
       D: mm.L,
       S: mm.Sx,
       reqA: reqLeft,
       reqB: reqRight,
       minRelease: MIN_RELEASE,
-      extraConstraints: ({ B }) => (B <= 200 + 1e-9)
+      maxB: MAX_RIGHT
     });
 
-    // Ось Y: размер W, шаг Sy, выпуски Bottom/Top
+    // Ось Y: размер W, шаг Sy, выпуски Bottom/Top (минимумы)
     const solY = solveAxis({
       D: mm.W,
       S: mm.Sy,
       reqA: reqBottom,
       reqB: reqTop,
-      minRelease: MIN_RELEASE,
-      extraConstraints: null
+      minRelease: MIN_RELEASE
     });
 
     if (!solX || !solY) {
       $("globalErr").textContent =
-        "Невозможно разместить стержни при заданных размерах/шагах/выпусках " +
-        "(шаг фиксированный; пробовали уменьшать количество стержней).";
+        "Невозможно разместить стержни при заданных размерах/шагах/выпусках (шаг фиксированный; пробовали уменьшать количество стержней).";
       $("results").style.display = "none";
       return;
     }
 
     // Количество стержней:
-    // NX (∥X) определяется раскладкой по Y (ось Y, шаг Sy) => N по оси Y
-    // NY (∥Y) определяется раскладкой по X (ось X, шаг Sx) => N по оси X
+    // NX (∥X) определяется раскладкой по Y (ось Y) => N по оси Y
+    // NY (∥Y) определяется раскладкой по X (ось X) => N по оси X
     const NX = solY.N;
     const NY = solX.N;
 
-    // Длины стержней НЕ увеличиваются выпусками: ∥X имеет длину L, ∥Y имеет длину W
+    // Длины стержней НЕ увеличиваются выпусками
     const lenX_m = mm.L / 1000;
     const lenY_m = mm.W / 1000;
 
@@ -526,7 +585,7 @@
     const kgm2_r = round(kgm2, 2);
     const price_r = round(priceGrid, 2);
 
-    // Фактические выпуски (смещения)
+    // Фактические выпуски
     const LeftA = solX.A, RightB = solX.B;
     const BottomA = solY.A, TopB = solY.B;
 
@@ -554,33 +613,18 @@
     const warn = [];
     if (mm.priceT === 0) warn.push("Цена €/т = 0 → итоговая цена будет 0 (для теста допустимо).");
 
-    // Если пользователь задавал выпуски — покажем, что могли получиться фактические другие (из-за уменьшения N)
     const userHadX = (mm.Left !== null || mm.Right !== null);
     const userHadY = (mm.Bottom !== null || mm.Top !== null);
 
     if (userHadX) {
-      const reqSum = (mm.Left ?? NaN) + (mm.Right ?? NaN);
-      // reqSum может быть NaN, если задана только одна сторона — тогда не сравниваем суммарно
-      if (isFinite(reqSum)) {
-        const factSum = LeftA + RightB;
-        if (Math.abs(reqSum - factSum) > 1e-6) warn.push("По оси X заданные выпуски полностью не соблюдены — уменьшено количество стержней, рассчитаны фактические.");
-      } else {
-        warn.push("По оси X была задана часть выпусков — рассчитаны фактические с учётом фиксированного шага и минимального выпуска.");
-      }
+      // если заданные были, а N пришлось уменьшать — просто фиксируем факт
+      warn.push("По оси X: заданные выпуски трактуются как минимумы; при нехватке места уменьшено количество стержней.");
     }
     if (userHadY) {
-      const reqSum = (mm.Bottom ?? NaN) + (mm.Top ?? NaN);
-      if (isFinite(reqSum)) {
-        const factSum = BottomA + TopB;
-        if (Math.abs(reqSum - factSum) > 1e-6) warn.push("По оси Y заданные выпуски полностью не соблюдены — уменьшено количество стержней, рассчитаны фактические.");
-      } else {
-        warn.push("По оси Y была задана часть выпусков — рассчитаны фактические с учётом фиксированного шага и минимального выпуска.");
-      }
+      warn.push("По оси Y: заданные выпуски трактуются как минимумы; при нехватке места уменьшено количество стержней.");
     }
 
-    if (mass_r < 1) warn.push("Масса очень мала — проверь мм/м и входные размеры.");
-    if (mass_r > 2500) warn.push("Масса очень велика для одной карты — проверь размеры/шаги.");
-    if (area > 30) warn.push("Площадь выглядит большой — проверь размеры.");
+    if (RightB > MAX_RIGHT + 1e-6) warn.push(`Right получился > ${MAX_RIGHT} мм — это не должно происходить (проверь).`);
 
     $("warnings").innerHTML = warn.length ? warn.map(x => `• ${x}`).join("<br/>") : `<span class="ok">Похоже на правду.</span>`;
 
@@ -610,9 +654,9 @@ priceGrid=${priceGrid}`;
     $("rulesPills").innerHTML = [
       `Sy ∈ {100,150,200}`,
       `Sx ∈ {100,150,200,250,300,350,400,450}`,
-      `Ø12 → шаг 100 запрещён (мин 150 по оси)`,
-      `MIN выпуск = ${MIN_RELEASE} мм с каждой стороны`,
-      `Right ≤ 200 мм`,
+      `Если где-либо Ø12 → шаг 100 запрещён везде`,
+      `MIN выпуск = ${MIN_RELEASE} мм (всегда)`,
+      `Right ≤ ${MAX_RIGHT} мм`,
       `Шаг не меняем; под выпуски только уменьшаем N`,
       `Выпуск длину стержня не увеличивает`
     ].map(t => `<span class="pill">${t}</span>`).join("");
@@ -687,11 +731,16 @@ priceGrid=${priceGrid}`;
       if (s.dY !== undefined) $("dY").value = s.dY;
 
       syncUnitLabels();
-      onDXChange();
-      onDYChange();
+      rebuildSteps();
 
       if (s.Sx !== undefined) $("Sx").value = s.Sx;
       if (s.Sy !== undefined) $("Sy").value = s.Sy;
+
+      // если теперь нельзя 100 — сбросим
+      if (isAny12()) {
+        if ($("Sx").value === "100") $("Sx").value = "";
+        if ($("Sy").value === "100") $("Sy").value = "";
+      }
     } catch {}
   }
 
@@ -711,19 +760,23 @@ priceGrid=${priceGrid}`;
     const dY = p.get("dY"); if (dY !== null) $("dY").value = dY;
 
     syncUnitLabels();
-    onDXChange();
-    onDYChange();
+    rebuildSteps();
 
     const Sx = p.get("Sx"); if (Sx !== null) $("Sx").value = Sx;
     const Sy = p.get("Sy"); if (Sy !== null) $("Sy").value = Sy;
+
+    // если по ссылке пришёл 100, а теперь нельзя — сбросим
+    if (isAny12()) {
+      if ($("Sx").value === "100") $("Sx").value = "";
+      if ($("Sy").value === "100") $("Sy").value = "";
+    }
   }
 
   function resetAll() {
     ["L","W","Left","Right","Bottom","Top","priceT"].forEach(id => $(id).value = "");
     $("dX").value = "";
     $("dY").value = "";
-    onDXChange();
-    onDYChange();
+    rebuildSteps();
     $("results").style.display = "none";
     clearErrors();
     $("globalErr").textContent = "";
@@ -740,8 +793,7 @@ priceGrid=${priceGrid}`;
 
     $("dX").value = "8";
     $("dY").value = "6";
-    onDXChange();
-    onDYChange();
+    rebuildSteps();
 
     $("Sx").value = "150";
     $("Sy").value = "150";
@@ -765,8 +817,8 @@ priceGrid=${priceGrid}`;
     else saveState();
   }
 
-  $("dX").addEventListener("change", () => { onDXChange(); maybeAutoCalc(); });
-  $("dY").addEventListener("change", () => { onDYChange(); maybeAutoCalc(); });
+  $("dX").addEventListener("change", () => { rebuildSteps(); maybeAutoCalc(); });
+  $("dY").addEventListener("change", () => { rebuildSteps(); maybeAutoCalc(); });
 
   ["L","W","Sx","Sy","Left","Right","Bottom","Top","priceT"].forEach(id => {
     $(id).addEventListener("input", maybeAutoCalc);
@@ -792,8 +844,7 @@ priceGrid=${priceGrid}`;
 
   // init
   syncUnitLabels();
-  onDXChange();
-  onDYChange();
+  rebuildSteps();
   loadState();
   applyQuery();
 </script>
