@@ -54,7 +54,111 @@
 
     .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#f0f2f5; border:1px solid #e2e4e8; font-size:12px; color:#444; margin:2px 6px 2px 0; }
     .pillsWrap { margin-top: 8px; }
-  </style>
+  /* ===== Текстовый блок (компактно: ключ справа/значение слева) ===== */
+.spec-wrap{
+  font-size:12px;
+  line-height:1.2;
+  margin-left: var(--specShiftX, 20mm);
+}
+
+.spec-wrap .title{
+  font-size:14px;
+  font-weight:700;
+  margin-bottom:2px;
+}
+.spec-wrap .muted{ color:#333; }
+
+/* Две колонки: слева ключ, справа значение */
+.spec-table{
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 140px 1fr; /* ширину ключей можно крутить */
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: baseline;
+}
+
+.spec-key{ color:#333; }
+.spec-val{ color:#000; white-space: nowrap; }
+
+.spec-footer{
+  margin-top:8px;
+  font-size:11px;
+  color:#333;
+}
+
+.sheet-layout{
+  display:grid;
+  grid-template-rows: auto 1fr;
+  gap: 4mm;
+  height:100%;
+}
+
+    #preview{
+      margin-top: 10px;
+      display:flex;
+      justify-content:center;
+    }
+
+    /* A4 preview */
+.a4{
+  --specShiftX: 20mm;   /* ← ВОТ СЮДА, можно крутить */
+  width:297mm;
+  height:210mm;
+  background:#fff;
+  padding:20mm 10mm 4mm 10mm;
+  box-sizing:border-box;
+  overflow:hidden;
+  box-shadow: 0 0 12px rgba(0,0,0,0.25);
+}
+
+.ivi-wrap{
+  height:130mm;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start; /* было center */
+}
+
+@page{
+  size: A4 landscape;
+  margin: 0;
+}
+
+    @media print{
+  html, body{
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  /* Печатаем ровно одну страницу: показываем только .a4 (она временно переносится в body) */
+  body > :not(.a4){
+    display: none !important;
+  }
+
+  .a4, .a4 *{
+    visibility: visible !important;
+  }
+
+  .a4{
+    display: block !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    padding: 20mm 10mm 4mm 10mm;
+    box-shadow: none;
+    overflow: hidden;
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+}
+
+</style>
 </head>
 
 <body>
@@ -199,7 +303,8 @@
 
     <div class="btns">
       <button class="primary" id="calcBtn">Рассчитать</button>
-      <button id="copyBtn">Копировать результат</button>
+      <button id="copyBtn">Копировать результат (JSON)</button>
+      <button id="printBtn">Печать / PDF</button>
       <button id="shareBtn">Ссылка-шэр</button>
       <button id="resetBtn">Сбросить</button>
     </div>
@@ -237,6 +342,22 @@
         </div>
       </div>
 
+
+      <div class="card" id="sheetCard" style="display:none; margin-top:10px;border-radius:12px;border:1px solid #eee; box-shadow:none;">
+        <div class="sectionTitle">
+          <span>Production Sheet (A4)</span>
+          <span class="mini">Печатается строго из CalculationResult</span>
+        </div>
+        <div class="btns" style="margin-top:0;">
+          <button id="showSheetBtn">Обновить лист</button>
+          <button class="primary" id="printBtn3">Печать / PDF</button>
+        </div>
+        <div id="sheetPreview" style="margin-top:10px; display:flex; justify-content:center; overflow:auto;"></div>
+        <div class="hint" style="margin-top:10px;">
+          На экране лист — как превью. При печати скрывается всё, кроме A4.
+        </div>
+      </div>
+
       <details>
         <summary>Отладка</summary>
         <pre id="debug" class="hint" style="white-space:pre-wrap"></pre>
@@ -249,7 +370,8 @@
 <div class="stickyBar">
   <div class="stickyInner">
     <button class="primary" id="calcBtn2">Рассчитать</button>
-    <button id="copyBtn2">Копировать</button>
+    <button id="copyBtn2">Копировать JSON</button>
+    <button id="printBtn2">Печать</button>
     <button id="shareBtn2">Шэр</button>
     <div class="mini">На телефоне кнопки всегда под рукой.</div>
   </div>
@@ -502,7 +624,348 @@
     return ok;
   }
 
-  // ===================== CALC =====================
+  
+  // =========================
+  // 0) ПАРАМЕТРЫ "ТОНКОЙ НАСТРОЙКИ"
+  // =========================
+  const TUNING = {
+    // линия стержня (двойная)
+    barStroke: 0.55,          // толщина каждой из двух линий
+    barGap: 2.2,             // половина расстояния между линиями
+    visualEdgeGap: 10,     // "визуальный" зазор от края (не влияет на цифры)
+
+    // размеры/выноски
+    dimOffsetMain: 80,    // X и Y дальше от сетки
+    dimOffsetStep: 70,    // SX/SY дальше от сетки
+    extLen: 70,           // длина выносных линий
+    dimStroke: 1,          // толщина размерных линий
+    tickLen: 9,           // длина засечки
+  dimFontMin: 46,      // как сейчас
+dimFontMax: 74,      // примерно 1.6× (46*1.6=73.6)
+dimFontRef: 1200,    // опорный размер (можно 1000..1500)
+
+releaseDimOffset: 170,   // отступ выпускных размеров от изделия (в координатах viewBox)
+
+releaseMinDraw: 14,     // минимальная длина "уса" на картинке
+releaseMaxDraw: 60,      // чтобы не раздувало огромные выпуски
+
+    // поля чертежного поля вокруг изделия (в viewBox координатах)
+    techMargin: 260
+  };
+
+  // =========================
+  // 2) SVG HELPERS
+  // =========================
+  const NS = "http://www.w3.org/2000/svg";
+  function el(name){ return document.createElementNS(NS, name); }
+
+let CURRENT_DIM_FONT = 46; // значение по умолчанию, потом перезапишем в renderIVI()
+
+function addText(svg, x, y, text, size = CURRENT_DIM_FONT, anchor = "middle"){
+  const t = el("text");
+    t.setAttribute("x", x);
+    t.setAttribute("y", y);
+    t.setAttribute("font-size", String(size));
+    t.setAttribute("font-family", "Arial, sans-serif");
+t.setAttribute("text-anchor", anchor);
+
+// чтобы подписи по вертикали реально были "по центру"
+t.setAttribute("dominant-baseline", "middle");
+t.setAttribute("alignment-baseline", "middle");
+
+t.textContent = text;
+svg.appendChild(t);
+  }
+
+function addLine(svg, x1, y1, x2, y2, w){
+  const line = el("line");
+  line.setAttribute("x1", x1);
+  line.setAttribute("y1", y1);
+  line.setAttribute("x2", x2);
+  line.setAttribute("y2", y2);
+  line.setAttribute("stroke", "#000");
+  line.setAttribute("stroke-width", String(w));
+  line.setAttribute("stroke-linecap", "square");
+
+  // КЛЮЧЕВО: толщина не масштабируется вместе с viewBox
+  line.setAttribute("vector-effect", "non-scaling-stroke");
+
+  svg.appendChild(line);
+}
+
+  // двойная линия стержня (символика, НЕ по диаметру)
+  function addDoubleLine(svg, x1, y1, x2, y2){
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+
+    const off = TUNING.barGap;
+    const w = TUNING.barStroke;
+
+    addLine(svg, x1 + nx*off, y1 + ny*off, x2 + nx*off, y2 + ny*off, w);
+    addLine(svg, x1 - nx*off, y1 - ny*off, x2 - nx*off, y2 - ny*off, w);
+  }
+
+  // выносная линия
+  function addExtLine(svg, x1, y1, x2, y2){
+    addLine(svg, x1, y1, x2, y2, TUNING.dimStroke);
+  }
+
+  // засечка
+  function addTick(svg, x, y, dx, dy){
+    addLine(svg, x - dx, y - dy, x + dx, y + dy, TUNING.dimStroke);
+  }
+
+  // размерная линия с засечками
+  function addDimLineWithTicks(svg, x1, y1, x2, y2, label, labelX, labelY){
+    addLine(svg, x1, y1, x2, y2, TUNING.dimStroke);
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+
+    const tl = TUNING.tickLen;
+    addTick(svg, x1, y1, nx*tl, ny*tl);
+    addTick(svg, x2, y2, nx*tl, ny*tl);
+
+addText(svg, labelX, labelY, label, CURRENT_DIM_FONT);
+  }
+
+  // =========================
+  // 3) RENDER IVI
+  // =========================
+  function renderIVI(data){
+    const svg = el("svg");
+
+// --- динамический размер шрифта для размеров ---
+// Берём характерный размер изделия (максимальную сторону)
+const ref = TUNING.dimFontRef;
+const k = Math.max(data.L, data.W) / ref;         // 1000..6000 => 0.8..5
+const t = Math.min(1, Math.max(0, (k - 1) / 3));  // плавно 0..1 (настройка диапазона)
+const DIM_FONT = TUNING.dimFontMin + (TUNING.dimFontMax - TUNING.dimFontMin) * t;
+CURRENT_DIM_FONT = DIM_FONT;
+
+
+    // поля вокруг изделия, чтобы размеры было куда вынести
+   const margin = TUNING.techMargin;
+
+// запас под "усы" выпусков + небольшой люфт
+const extra = 0;
+
+const vbW = data.L + (margin + extra) * 2;
+const vbH = data.W + (margin + extra) * 2;
+
+svg.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
+
+// смещаем базу, чтобы "усы" помещались со всех сторон
+const ox = margin;
+const oy = margin;
+
+  svg.setAttribute("width", "270mm");
+svg.setAttribute("height", "130mm");
+svg.setAttribute("preserveAspectRatio", "xMidYMin meet");
+   
+    // визуальные границы, чтобы создавалось ощущение "лежит", а не "упёрлось"
+    const g = TUNING.visualEdgeGap;
+
+    // --- Стержни X (горизонтальные) ---
+// --- Стержни X/Y (выпуски как "зазоры" внутри габарита) ---
+const leftEdge  = ox + g;
+const rightEdge = ox + data.L - g;
+const topEdge   = oy + g;
+const botEdge   = oy + data.W - g;
+
+// Горизонтальные стержни (X) — рисуем строго countX
+for(let i = 0; i < data.countX; i++){
+  const y = oy + data.releaseTop + i * data.Sy;
+  addDoubleLine(svg, leftEdge, y, rightEdge, y);
+}
+
+// Вертикальные стержни (Y) — рисуем строго countY
+for(let i = 0; i < data.countY; i++){
+  const x = ox + data.releaseLeft + i * data.Sx;
+  addDoubleLine(svg, x, topEdge, x, botEdge);
+}
+
+    // ==========================
+    //  DIMENSIONS — clean version
+    //  (без "умничания", только от реальных стержней)
+    // ==========================
+    const DIM_MAIN = TUNING.dimOffsetMain;   // X/Y
+    const DIM_STEP = TUNING.dimOffsetStep;   // SX/SY
+    const EXT      = TUNING.extLen;
+    const REL_OFF  = TUNING.releaseDimOffset;
+
+    // Реальные "опорные" линии сетки (первые стержни)
+    const xFirst = ox + data.releaseLeft;
+    const yFirst = oy + data.releaseTop;
+
+    // Вторые стержни (для шага)
+    const xSecond = xFirst + data.Sx;
+    const ySecond = yFirst + data.Sy;
+
+    // Габарит детали (края листа изделия, НЕ "визуальные g")
+    const x0 = ox;
+    const x1 = ox + data.L;
+    const y0 = oy;
+    const y1 = oy + data.W;
+
+    // Чтобы не рисовать шаги, если стержней меньше 2
+    const hasStepX = data.countY >= 2; // вертикальные стержни => шаг SX
+    const hasStepY = data.countX >= 2; // горизонтальные стержни => шаг SY
+
+    // ---------- helpers ----------
+function dimH(xa, xb, yDim, yExtFrom, label, labelYOffset, labelXOffset){
+// направление выносных: вверх или вниз от опорной линии к размерной
+  const s = (yDim < yExtFrom) ? -1 : 1;       // -1 = размер сверху, +1 = размер снизу
+  const yExtEnd = yDim - s * EXT;             // выносные подходят к размерной с "правильной" стороны
+
+  addExtLine(svg, xa, yExtFrom, xa, yExtEnd);
+  addExtLine(svg, xb, yExtFrom, xb, yExtEnd);
+
+  addDimLineWithTicks(
+    svg,
+    xa, yDim,
+    xb, yDim,
+    label,
+ (xa + xb)/2 + (labelXOffset ?? 0),
+    yDim + (labelYOffset ?? (45 * s))        // подпись всегда "снаружи"
+  );
+}
+
+function dimV(ya, yb, xDim, xExtFrom, label, labelXOffset){
+  const s = (xDim < xExtFrom) ? -1 : 1;       // -1 = размер слева, +1 = размер справа
+  const xExtEnd = xDim - s * EXT;
+
+  addExtLine(svg, xExtFrom, ya, xExtEnd, ya);
+  addExtLine(svg, xExtFrom, yb, xExtEnd, yb);
+
+  addDimLineWithTicks(
+    svg,
+    xDim, ya,
+    xDim, yb,
+    label,
+    xDim + (labelXOffset ?? (18 * s)),
+    (ya + yb)/2
+  );
+}
+
+    // ==========================
+    //  1) Габариты X / Y
+    // ==========================
+    // X снизу — габарит изделия
+    const xDimY = y1 + DIM_MAIN;
+    dimH(x0, x1, xDimY, y1, `X ${data.L}`);
+
+    // Y справа — габарит изделия
+    const yDimX = x1 + DIM_MAIN;
+    dimV(y0, y1, yDimX, x1, `Y ${data.W}`);
+
+    // ==========================
+    //  2) Шаги SX / SY
+    //     ВАЖНО: привязка к первому стержню!
+    // ==========================
+    if(hasStepX){
+      // SX сверху, измеряем между 1 и 2 вертикальным стержнем,
+      // а выносные привязываем к ЛИНИИ ПЕРВОГО ГОРИЗ. СТЕРЖНЯ (yFirst),
+      // чтобы не было ощущения "меряем от конца другого стержня"
+      const sxY = y0 - (DIM_STEP-25);
+  dimH(xFirst, xSecond, sxY, yFirst, `SX ${data.Sx}`, undefined, +60);
+    }
+
+    if(hasStepY){
+      // SY слева, измеряем между 1 и 2 горизонтальным стержнем,
+      // выносные привязываем к ЛИНИИ ПЕРВОГО ВЕРТ. СТЕРЖНЯ (xFirst)
+      const syX = x0 - DIM_STEP;
+      dimV(yFirst, ySecond, syX, xFirst, `SY ${data.Sy}`, -10);
+    }
+
+    // ==========================
+    //  3) Выпуски L / R / T / B
+    // ==========================
+
+   // ============ 3) Выпуски L/R/T/B — короткие, "ближние" ============
+
+// общий уровень для верхних выпусков (чуть выше линии SX)
+const relTopY = y0 - (DIM_STEP -25);   // можно потом крутить 90
+
+// общий уровень для левых выпусков (чуть левее линии SY)
+const relLeftX = x0 - (DIM_STEP + 0); // можно потом крутить 110
+
+if(data.releaseLeft > 0){
+  dimH(x0, xFirst, relTopY, y0, `${data.releaseLeft}`, -45);
+}
+
+if(data.releaseRight > 0){
+  dimH(x1 - data.releaseRight, x1, relTopY, y0, `${data.releaseRight}`, -45);
+}
+
+if(data.releaseTop > 0){
+  dimV(y0, yFirst, relLeftX, x0, `${data.releaseTop}`, -60);
+}
+
+if(data.releaseBottom > 0){
+  dimV(y1 - data.releaseBottom, y1, relLeftX, x0, `${data.releaseBottom}`, -60);
+}
+
+    return svg;
+  }
+
+  // =========================
+  // 4) TEXT BLOCK
+  // =========================
+function renderTextBlock(data){
+  const div = document.createElement("div");
+  div.className = "spec-wrap";
+
+  const dt = data.generatedAt || "—";
+  const id = data.calcId || "—";
+
+  div.innerHTML = `
+    <div class="title">Сварная арматурная сетка</div>
+    <div class="muted">Сталь: B500A</div>
+
+    <div class="spec-table">
+      <div class="spec-key">Размер:</div>     <div class="spec-val">${data.L} × ${data.W} мм</div>
+      <div class="spec-key">Шаг:</div>        <div class="spec-val">SX ${data.Sx} / SY ${data.Sy} мм</div>
+      <div class="spec-key">Диаметры:</div>   <div class="spec-val">Ø${data.dX} / Ø${data.dY} мм</div>
+      <div class="spec-key">Масса:</div>      <div class="spec-val">${data.weightKg} кг</div>
+      <div class="spec-key">Выпуски:</div>    <div class="spec-val">L ${data.releaseLeft}, R ${data.releaseRight}, T ${data.releaseTop}, B ${data.releaseBottom} мм</div>
+      <div class="spec-key">ID:</div>         <div class="spec-val">${id}</div>
+      <div class="spec-key">Дата:</div>       <div class="spec-val">${dt}</div>
+    </div>
+  `;
+  return div;
+}
+
+  // =========================
+  // 5) A4 PAGE
+  // =========================
+  function renderProductionSheetA4(data){
+    const page = document.createElement("div");
+    page.className = "a4";
+
+    const layout = document.createElement("div");
+    layout.className = "sheet-layout";
+
+    const iviWrap = document.createElement("div");
+    iviWrap.className = "ivi-wrap";
+    iviWrap.appendChild(renderIVI(data));
+
+    layout.appendChild(iviWrap);
+    layout.appendChild(renderTextBlock(data));
+
+    page.appendChild(layout);
+    return page;
+  }
+
+  
+
+// ===================== CALC =====================
   function calc() {
     saveState();
 
@@ -661,27 +1124,89 @@ priceGrid=${priceGrid}`;
       `Выпуск длину стержня не увеличивает`
     ].map(t => `<span class="pill">${t}</span>`).join("");
 
+
+    // ===== CalculationResult (единственный источник правды для ИВИ/печати/копирования) =====
+    const calcId = `CALC-${Date.now().toString(36).toUpperCase()}`;
+    window.lastCalculationResult = {
+      schemaVersion: "1.0",
+      calcId,
+      generatedAt: new Date().toISOString(),
+
+      L: Math.round(mm.L),
+      W: Math.round(mm.W),
+      Sx: mm.Sx,
+      Sy: mm.Sy,
+      dX: mm.dX,
+      dY: mm.dY,
+
+      releaseLeft: Math.round(LeftA),
+      releaseRight: Math.round(RightB),
+      releaseTop: Math.round(TopB),
+      releaseBottom: Math.round(BottomA),
+
+      countX: NX, // стержни ∥X (горизонтальные)
+      countY: NY, // стержни ∥Y (вертикальные)
+
+      weightKg: round(mass, 2),
+      areaM2: round(area, 3)
+    };
+
+    // Обновим превью Production Sheet
+    renderSheetPreview();
+
     $("okBadge").textContent = "готово";
     $("globalErr").textContent = "";
     $("results").style.display = "block";
     $("results").scrollIntoView({behavior: "smooth", block: "start"});
   }
 
-  // ===================== COPY / SHARE / STATE =====================
+  
+  // ===================== Production Sheet (A4) =====================
+  function renderSheetPreview(){
+    const card = document.getElementById("sheetCard");
+    const host = document.getElementById("sheetPreview");
+    if(!card || !host) return;
+    host.innerHTML = "";
+    if(!window.lastCalculationResult){
+      card.style.display = "none";
+      return;
+    }
+    card.style.display = "block";
+    host.appendChild(renderProductionSheetA4(window.lastCalculationResult));
+  }
+
+  function doPrint(){
+    if(!window.lastCalculationResult){
+      alert("Сначала сделайте расчёт.");
+      return;
+    }
+    renderSheetPreview();
+
+    const sheet = document.querySelector(".a4");
+    if(!sheet){
+      alert("Лист печати не найден.");
+      return;
+    }
+
+    // Чтобы не появлялись пустые страницы, временно переносим A4-лист в <body>
+    const prevParent = sheet.parentElement;
+    const nextSibling = sheet.nextSibling;
+    document.body.appendChild(sheet);
+
+    // Даём браузеру один кадр на перестройку перед печатью
+    requestAnimationFrame(() => {
+      window.print();
+
+      // Возвращаем лист обратно в превью
+      if(nextSibling) prevParent.insertBefore(sheet, nextSibling);
+      else prevParent.appendChild(sheet);
+    });
+  }
+
+// ===================== COPY / SHARE / STATE =====================
   function buildCopyText() {
-    if ($("results").style.display !== "block") return "Нет результата. Нажмите «Рассчитать».";
-    const rows = [];
-    rows.push("Калькулятор сварной сетки (фикс. шаг, выпуски=уменьшаем N)");
-    rows.push("");
-    const el = $("outKV");
-    const kids = Array.from(el.children);
-    for (let i=0; i<kids.length; i+=2) rows.push(`- ${kids[i].textContent}: ${kids[i+1].textContent}`);
-    rows.push("");
-    rows.push("Предупреждения:");
-    rows.push($("warnings").innerText.trim() || "—");
-    rows.push("");
-    rows.push("Примечание: Сетка сварная. Арматура B500A. Значения расчётные.");
-    return rows.join("\n");
+    if (!window.lastCalculationResult) return "Нет результата. Нажмите «Рассчитать».";
+    return JSON.stringify(window.lastCalculationResult, null, 2);
   }
 
   async function copyResult() {
@@ -832,6 +1357,12 @@ priceGrid=${priceGrid}`;
   $("calcBtn2").addEventListener("click", calc);
 
   $("copyBtn").addEventListener("click", copyResult);
+
+  $("printBtn").addEventListener("click", doPrint);
+  $("printBtn2").addEventListener("click", doPrint);
+  $("printBtn3").addEventListener("click", doPrint);
+  $("showSheetBtn").addEventListener("click", renderSheetPreview);
+
   $("copyBtn2").addEventListener("click", copyResult);
 
   $("shareBtn").addEventListener("click", shareLink);
