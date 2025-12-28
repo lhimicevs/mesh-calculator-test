@@ -156,6 +156,21 @@
     page-break-after: avoid;
     break-after: avoid-page;
   }
+  /* Прокрутка превью A4 на экране (особенно на мобильном) */
+#sheetPreview{
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  max-width: 100vw;
+}
+
+/* На телефоне лучше не центрировать A4, чтобы жесты были естественными */
+@media (max-width: 720px){
+  #sheetPreview{
+    justify-content: flex-start !important; /* у тебя там flex */
+  }
+}
+
 }
 
 </style>
