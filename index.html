@@ -137,20 +137,29 @@
     justify-content: flex-start !important; /* у тебя там flex */
   }
 }
-/* Вьюпорт для листа A4 на экране */
+/* Вьюпорт превью A4: вертикальный + горизонтальный скролл */
 #sheetPreview{
   width: 100%;
-  overflow: auto;
+  max-width: 100vw;
+  overflow: auto;                 /* и X и Y */
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
-  justify-content: flex-start; /* пусть начинается слева */
-  align-items: flex-start;     /* и сверху */
 }
 
-/* На телефоне делаем окну разумную высоту, чтобы появился внутренний скролл */
+/* .a4 не должен сжиматься и должен уметь жить шире экрана */
+#sheetPreview .a4{
+  display: inline-block;
+  margin: 0 auto;                 /* центр на больших экранах */
+  min-width: 297mm;               /* фиксируем реальную ширину листа */
+}
+
+/* На телефоне удобнее начинать слева, чтобы сразу был доступен правый край по скроллу */
 @media (max-width: 720px){
+  #sheetPreview .a4{
+    margin: 0;                    /* без центрирования на мобиле */
+  }
   #sheetPreview{
-    max-height: 75vh;      /* ключ: появляется внутренняя прокрутка */
+    max-height: 75vh;             /* твоя вертикальная прокрутка остаётся */
     padding: 8px;
   }
 }
@@ -383,7 +392,7 @@
           <button id="showSheetBtn">Обновить лист</button>
           <button class="primary" id="printBtn3">Печать / PDF</button>
         </div>
-         <div id="sheetPreview" style="margin-top:10px; display:flex;"></div>
+        <div id="sheetPreview" style="margin-top:10px;"></div>
         <div class="hint" style="margin-top:10px;">
           На экране лист — как превью. При печати скрывается всё, кроме A4.
         </div>
