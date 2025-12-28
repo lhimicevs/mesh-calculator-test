@@ -690,7 +690,7 @@ releaseMinDraw: 14,     // минимальная длина "уса" на ка�
 releaseMaxDraw: 60,      // чтобы не раздувало огромные выпуски
 
     // поля чертежного поля вокруг изделия (в viewBox координатах)
-    techMargin: 260
+    techMargin: 425
   };
 
   // =========================
@@ -889,7 +889,7 @@ function dimV(ya, yb, xDim, xExtFrom, label, labelXOffset){
     xDim, ya,
     xDim, yb,
     label,
-    xDim + (labelXOffset ?? (18 * s)),
+    xDim + (labelXOffset ?? (8 * s)),
     (ya + yb)/2
   );
 }
@@ -903,7 +903,7 @@ function dimV(ya, yb, xDim, xExtFrom, label, labelXOffset){
 
     // Y справа — габарит изделия
     const yDimX = x1 + DIM_MAIN;
-    dimV(y0, y1, yDimX, x1, `Y ${data.W}`);
+dimV(y0, y1, yDimX, x1, `Y ${data.W}`, -30);
 
     // ==========================
     //  2) Шаги SX / SY
